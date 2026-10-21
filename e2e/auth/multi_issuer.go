@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/gomega" //nolint:staticcheck // dot import for test readability
 
 	"github.com/openshift-hyperfleet/hyperfleet-e2e/pkg/client"
+	"github.com/openshift-hyperfleet/hyperfleet-e2e/pkg/config"
 	"github.com/openshift-hyperfleet/hyperfleet-e2e/pkg/helper"
 	"github.com/openshift-hyperfleet/hyperfleet-e2e/pkg/labels"
 )
@@ -20,6 +21,9 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 
 		ginkgo.BeforeEach(func(_ context.Context) {
 			h = helper.New()
+			if h.Cfg.AuthMode == config.AuthModeNone {
+				ginkgo.Skip("JWT identity tests require an authenticated AUTH_MODE")
+			}
 		})
 
 		ginkgo.It("populates audit fields on write requests from JWT sub claim",
@@ -57,7 +61,7 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 					"deleted_by should contain the JWT sub claim identity")
 			})
 
-		ginkgo.It("rejects tokens from unconfigured issuers with 401 and AUT-002",
+		ginkgo.It("rejects tokens from unconfigured issuers",
 			func(ctx context.Context) {
 				ginkgo.By("crafting a JWT from an unconfigured issuer")
 				token, err := craftUnconfiguredIssuerJWT()
@@ -68,9 +72,7 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
 
-				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized),
-					"unconfigured issuer should return 401")
-				Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-002"))
+				expectAuthRejected(resp, h.Cfg.AuthMode, "HYPERFLEET-AUT-002")
 			})
 
 		ginkgo.It("accepts tokens from different service accounts within the configured issuer",
@@ -78,9 +80,10 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 				if !h.Cfg.Identity.TokenRequest.IsEnabled() {
 					ginkgo.Skip("TokenRequest not configured - cannot acquire token for a different SA")
 				}
+				if h.Cfg.AuthMode == config.AuthModeEdge || h.Cfg.AuthMode == config.AuthModeEdgeAPI {
+					ginkgo.Skip("edge authentication restricts machine ServiceAccounts to the gateway allow-list")
+				}
 
-				// Use a different SA name in the same namespace to prove the API accepts
-				// tokens from any SA under the configured K8s issuer, not just the E2E SA.
 				altSAName := h.Cfg.Identity.TokenRequest.ServiceAccountName + "-alt"
 				ns := h.Cfg.Identity.TokenRequest.Namespace
 				audience := h.Cfg.Identity.TokenRequest.Audience
@@ -98,7 +101,8 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 				Expect(err).NotTo(HaveOccurred(), "acquiring a token for the alt SA should succeed")
 
 				ginkgo.By("creating a cluster with the alternative SA token")
-				altClient, err := client.NewHyperFleetClient(h.Cfg.API.URL, nil, client.WithBearerToken(altToken))
+				altClient, err := client.NewHyperFleetClient(h.Cfg.API.URL, nil,
+					client.WithAuthorizationToken(altToken, h.Cfg.MachineAuthorizationScheme()))
 				Expect(err).NotTo(HaveOccurred(), "creating alt client should succeed")
 
 				cluster, err := altClient.CreateClusterFromPayload(ctx, h.TestDataPath("payloads/clusters/cluster-request.json"))
@@ -114,7 +118,7 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 					"created_by should reflect the alternative SA identity, not the primary E2E SA")
 			})
 
-		ginkgo.It("rejects tokens with an incorrect audience with 401 and AUT-002",
+		ginkgo.It("rejects tokens with an incorrect audience",
 			func(ctx context.Context) {
 				if !h.Cfg.Identity.TokenRequest.IsEnabled() {
 					ginkgo.Skip("TokenRequest not configured - cannot mint a real token with a wrong audience")
@@ -130,13 +134,11 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 				Expect(err).NotTo(HaveOccurred(), "acquiring a wrong-audience token should succeed")
 
 				ginkgo.By("sending request with the wrong-audience token")
-				resp, err := rawRequest(ctx, h.Cfg.API.URL, http.MethodGet, token)
+				resp, err := rawRequestWithScheme(ctx, h.Cfg.API.URL, http.MethodGet, token, h.Cfg.MachineAuthorizationScheme())
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
 
-				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized),
-					"incorrect audience should return 401")
-				Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-002"))
+				expectAuthRejected(resp, h.Cfg.AuthMode, "HYPERFLEET-AUT-002")
 			})
 
 		ginkgo.It("confirms adapters authenticate with JWT when reporting cluster status",

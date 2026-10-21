@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	. "github.com/onsi/gomega" //nolint:staticcheck // shared assertion helper for auth specs
+	"github.com/openshift-hyperfleet/hyperfleet-e2e/pkg/config"
+	"github.com/openshift-hyperfleet/hyperfleet-e2e/pkg/helper"
 )
 
 const apiPrefix = "/api/hyperfleet/v1/"
@@ -17,6 +20,11 @@ const apiPrefix = "/api/hyperfleet/v1/"
 // rawRequest makes an HTTP request to the clusters API endpoint.
 // If token is non-empty, it's sent as a Bearer token; otherwise unauthenticated.
 func rawRequest(ctx context.Context, apiURL, method, token string) (*http.Response, error) {
+	return rawRequestWithScheme(ctx, apiURL, method, token, config.AuthorizationSchemeBearer)
+}
+
+// rawRequestWithScheme makes an HTTP request with an explicit token scheme.
+func rawRequestWithScheme(ctx context.Context, apiURL, method, token, scheme string) (*http.Response, error) {
 	fullURL := strings.TrimRight(apiURL, "/") + apiPrefix + "clusters"
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, nil)
 	if err != nil {
@@ -24,9 +32,21 @@ func rawRequest(ctx context.Context, apiURL, method, token string) (*http.Respon
 	}
 	req.Header.Set("Accept", "application/json")
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Authorization", scheme+" "+token)
 	}
 	return (&http.Client{Timeout: 30 * time.Second}).Do(req)
+}
+
+func expectAuthRejected(resp *http.Response, authMode, apiErrorCode string) {
+	if authMode == config.AuthModeAPI {
+		Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+		if apiErrorCode != "" {
+			Expect(resp).To(helper.HaveRFC9457Error(apiErrorCode))
+		}
+		return
+	}
+
+	Expect([]int{http.StatusUnauthorized, http.StatusForbidden}).To(ContainElement(resp.StatusCode))
 }
 
 // craftJWT creates a self-signed JWT with arbitrary claims, signed with a random RSA key.
