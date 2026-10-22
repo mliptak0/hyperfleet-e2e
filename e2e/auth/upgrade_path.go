@@ -42,7 +42,10 @@ var _ = ginkgo.Describe("[Suite: auth][upgrade] Authentication Upgrade Path Vali
 				resp, err := rawRequest(ctx, h.Cfg.API.URL, http.MethodGet, "")
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
-				expectAuthRejected(resp, h.Cfg.AuthMode, "HYPERFLEET-AUT-001")
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				if h.Cfg.AuthMode == config.AuthModeAPI {
+					Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-001"))
+				}
 
 				ginkgo.By("2. Verifying machine identity: creating cluster and checking created_by")
 				cluster, err := h.Client.CreateClusterFromPayload(ctx, h.TestDataPath("payloads/clusters/cluster-request.json"))

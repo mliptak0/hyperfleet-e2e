@@ -31,7 +31,10 @@ var _ = ginkgo.Describe("[Suite: auth][enforcement] JWT Authentication Enforceme
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
 
-				expectAuthRejected(resp, h.Cfg.AuthMode, "HYPERFLEET-AUT-001")
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				if h.Cfg.AuthMode == config.AuthModeAPI {
+					Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-001"))
+				}
 			})
 
 		ginkgo.It("rejects POST request without Authorization header",
@@ -41,7 +44,10 @@ var _ = ginkgo.Describe("[Suite: auth][enforcement] JWT Authentication Enforceme
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
 
-				expectAuthRejected(resp, h.Cfg.AuthMode, "HYPERFLEET-AUT-001")
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				if h.Cfg.AuthMode == config.AuthModeAPI {
+					Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-001"))
+				}
 			})
 
 		ginkgo.It("rejects requests with invalid JWT signature",
@@ -55,7 +61,10 @@ var _ = ginkgo.Describe("[Suite: auth][enforcement] JWT Authentication Enforceme
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
 
-				expectAuthRejected(resp, h.Cfg.AuthMode, "HYPERFLEET-AUT-002")
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				if h.Cfg.AuthMode == config.AuthModeAPI {
+					Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-002"))
+				}
 			})
 
 		// In API mode, the deployed JWT middleware returns AUT-002 for unverifiable tokens.
@@ -70,7 +79,10 @@ var _ = ginkgo.Describe("[Suite: auth][enforcement] JWT Authentication Enforceme
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
 
-				expectAuthRejected(resp, h.Cfg.AuthMode, "HYPERFLEET-AUT-002")
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				if h.Cfg.AuthMode == config.AuthModeAPI {
+					Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-002"))
+				}
 			})
 
 		// In API mode, the deployed JWT middleware returns AUT-002 for unverifiable tokens.
@@ -81,7 +93,10 @@ var _ = ginkgo.Describe("[Suite: auth][enforcement] JWT Authentication Enforceme
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
 
-				expectAuthRejected(resp, h.Cfg.AuthMode, "HYPERFLEET-AUT-002")
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				if h.Cfg.AuthMode == config.AuthModeAPI {
+					Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-002"))
+				}
 			})
 	},
 )

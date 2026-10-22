@@ -72,7 +72,10 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
 
-				expectAuthRejected(resp, h.Cfg.AuthMode, "HYPERFLEET-AUT-002")
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				if h.Cfg.AuthMode == config.AuthModeAPI {
+					Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-002"))
+				}
 			})
 
 		ginkgo.It("accepts tokens from different service accounts within the configured issuer",
@@ -138,7 +141,10 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
 
-				expectAuthRejected(resp, h.Cfg.AuthMode, "HYPERFLEET-AUT-002")
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				if h.Cfg.AuthMode == config.AuthModeAPI {
+					Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-002"))
+				}
 			})
 
 		ginkgo.It("confirms adapters authenticate with JWT when reporting cluster status",

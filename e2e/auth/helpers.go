@@ -10,9 +10,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	. "github.com/onsi/gomega" //nolint:staticcheck // shared assertion helper for auth specs
 	"github.com/openshift-hyperfleet/hyperfleet-e2e/pkg/config"
-	"github.com/openshift-hyperfleet/hyperfleet-e2e/pkg/helper"
 )
 
 const apiPrefix = "/api/hyperfleet/v1/"
@@ -35,18 +33,6 @@ func rawRequestWithScheme(ctx context.Context, apiURL, method, token, scheme str
 		req.Header.Set("Authorization", scheme+" "+token)
 	}
 	return (&http.Client{Timeout: 30 * time.Second}).Do(req)
-}
-
-func expectAuthRejected(resp *http.Response, authMode, apiErrorCode string) {
-	if authMode == config.AuthModeAPI {
-		Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
-		if apiErrorCode != "" {
-			Expect(resp).To(helper.HaveRFC9457Error(apiErrorCode))
-		}
-		return
-	}
-
-	Expect([]int{http.StatusUnauthorized, http.StatusForbidden}).To(ContainElement(resp.StatusCode))
 }
 
 // craftJWT creates a self-signed JWT with arbitrary claims, signed with a random RSA key.
