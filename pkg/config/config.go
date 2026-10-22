@@ -660,11 +660,14 @@ func (c *Config) Validate() error {
 
 	// Validate identity tokenRequest config
 	if c.Identity.TokenRequest.IsEnabled() {
+		if !dryRun && c.AuthMode != AuthModeNone && c.Namespace == "" {
+			return fmt.Errorf("configuration validation failed: NAMESPACE is required when AUTH_MODE=%s", c.AuthMode)
+		}
 		if c.Identity.TokenRequest.Namespace == "" && !dryRun {
 			return fmt.Errorf("configuration validation failed: identity.tokenRequest.namespace is required when tokenRequest is enabled")
 		}
 		if !dryRun && c.AuthMode != AuthModeNone {
-			if c.Namespace == "" || c.Identity.TokenRequest.Namespace != c.Namespace {
+			if c.Identity.TokenRequest.Namespace != c.Namespace {
 				return fmt.Errorf("configuration validation failed: identity.tokenRequest.namespace must match namespace for AUTH_MODE=%s", c.AuthMode)
 			}
 			if c.Identity.TokenRequest.ServiceAccountName != DefaultE2ERunnerServiceAccountName {

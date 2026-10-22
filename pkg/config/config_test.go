@@ -213,6 +213,16 @@ func TestAuthModeRejectsUnsupportedValue(t *testing.T) {
 	}
 }
 
+func TestAuthenticatedModeRequiresNamespace(t *testing.T) {
+	_, err := loadConfigResult(t, "", map[string]string{"NAMESPACE": ""})
+	if err == nil {
+		t.Fatal("Load accepted authenticated mode without NAMESPACE")
+	}
+	if !strings.Contains(err.Error(), "NAMESPACE is required when AUTH_MODE=EDGE+API") {
+		t.Errorf("Load error = %q, want missing NAMESPACE validation error", err)
+	}
+}
+
 func TestAuthModeRejectsCustomRunnerServiceAccount(t *testing.T) {
 	_, err := loadConfigResult(t, "", map[string]string{
 		"HYPERFLEET_IDENTITY_TOKENREQUEST_SERVICEACCOUNTNAME": "other-runner",
