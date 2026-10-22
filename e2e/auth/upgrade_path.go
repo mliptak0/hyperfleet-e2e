@@ -42,7 +42,8 @@ var _ = ginkgo.Describe("[Suite: auth][upgrade] Authentication Upgrade Path Vali
 				resp, err := rawRequest(ctx, h.Cfg.API.URL, http.MethodGet, "")
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
-				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized),
+					"unauthenticated request must return 401")
 				if h.Cfg.AuthMode == config.AuthModeAPI {
 					Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-001"))
 				}

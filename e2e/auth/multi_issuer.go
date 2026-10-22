@@ -61,7 +61,7 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 					"deleted_by should contain the JWT sub claim identity")
 			})
 
-		ginkgo.It("rejects tokens from unconfigured issuers",
+		ginkgo.It("rejects tokens from unconfigured issuers with 401",
 			func(ctx context.Context) {
 				ginkgo.By("crafting a JWT from an unconfigured issuer")
 				token, err := craftUnconfiguredIssuerJWT()
@@ -72,7 +72,8 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
 
-				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized),
+					"unconfigured issuer should return 401")
 				if h.Cfg.AuthMode == config.AuthModeAPI {
 					Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-002"))
 				}
@@ -87,6 +88,8 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 					ginkgo.Skip("edge authentication restricts machine ServiceAccounts to the gateway allow-list")
 				}
 
+				// Use a different SA name in the same namespace to prove the API accepts
+				// tokens from any SA under the configured K8s issuer, not just the E2E SA.
 				altSAName := h.Cfg.Identity.TokenRequest.ServiceAccountName + "-alt"
 				ns := h.Cfg.Identity.TokenRequest.Namespace
 				audience := h.Cfg.Identity.TokenRequest.Audience
@@ -121,7 +124,7 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 					"created_by should reflect the alternative SA identity, not the primary E2E SA")
 			})
 
-		ginkgo.It("rejects tokens with an incorrect audience",
+		ginkgo.It("rejects tokens with an incorrect audience with 401",
 			func(ctx context.Context) {
 				if !h.Cfg.Identity.TokenRequest.IsEnabled() {
 					ginkgo.Skip("TokenRequest not configured - cannot mint a real token with a wrong audience")
@@ -141,7 +144,8 @@ var _ = ginkgo.Describe("[Suite: auth][multi-issuer] JWT Identity and Issuer Val
 				Expect(err).NotTo(HaveOccurred(), "HTTP request should succeed at transport level")
 				defer func() { _ = resp.Body.Close() }()
 
-				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+				Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized),
+					"incorrect audience should return 401")
 				if h.Cfg.AuthMode == config.AuthModeAPI {
 					Expect(resp).To(helper.HaveRFC9457Error("HYPERFLEET-AUT-002"))
 				}
